@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Personalization Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f5f6f8;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      background: #4a73ff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #395ce0;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      background: #eef2ff;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>AI Personalization Demo</h2>
+    <p>간단한 정보 입력을 통해 개인화된 AI 메시지를 만들어봅니다.</p>
+
+    <input type="text" id="name" placeholder="이름을 입력하세요" />
+    <input type="text" id="goal" placeholder="요즘 달성하고 싶은 목표는?" />
+    <button onclick="generateMessage()">개인화 메시지 생성하기</button>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    function generateMessage() {
+      const name = document.getElementById("name").value.trim();
+      const goal = document.getElementById("goal").value.trim();
+      const result = document.getElementById("result");
+
+      if (!name || !goal) {
+        result.style.display = "block";
+        result.innerHTML = "모든 정보를 입력해주세요.";
+        return;
+      }
+
+      const message = `
+        ${name}님, 요즘 <strong>${goal}</strong>을(를) 이루려는 노력 멋집니다.<br><br>
+        AI가 분석한 추천 패턴에 따르면 매일 1%씩 목표에 다가가는 작은 루틴이 가장 효과적입니다.
+        오늘도 조금씩 앞으로 나아가보세요!
+      `;
+
+      result.style.display = "block";
+      result.innerHTML = message;
+    }
+  </script>
+</body>
+</html>
