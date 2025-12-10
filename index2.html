@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Calendar</title>
+  <style>
+    :root{
+      --bg: #F6F7FB;
+      --card: #ffffff;
+      --accent: #4B6EF6;
+      --muted: #9AA3C7;
+      --danger: #E45656;
+      --radius: 10px;
+      font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background: linear-gradient(180deg, #F6F7FB 0%, #FFFFFF 100%);
+      color:#1f2d3d;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .app {
+      max-width: 980px;
+      margin: 32px auto;
+      padding: 24px;
+    }
+
+    .header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      margin-bottom:16px;
+    }
+
+    .title {
+      display:flex;flex-direction:column;
+    }
+    .title h1{margin:0;font-size:20px;}
+    .title p{margin:0;color:var(--muted);font-size:13px;}
+
+    .controls {
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .btn {
+      background:var(--card);
+      border:1px solid #e6e9f2;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:14px;
+      box-shadow:0 1px 2px rgba(31,45,61,0.03);
+    }
+
+    .btn.primary{
+      background:var(--accent);
+      color:white;
+      border:none;
+    }
+
+    .calendar-card {
+      background:var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 30px rgba(16,24,40,0.04);
+      padding:16px;
+    }
+
+    .weekdays {
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:8px;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-weight:600;
+      font-size:13px;
+    }
+
+    .grid-days{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:8px;
+    }
+
+    .day {
+      min-height:92px;
+      border-radius:8px;
+      padding:8px;
+      background:linear-gradient(180deg,#fff,#fbfdff);
+      border:1px solid #f0f2f8;
+      position:relative;
+      overflow:hidden;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .day.outside {
+      background:transparent;
+      border:1px dashed #f0f2f8;
+      color: #b7bfd6;
+      cursor:default;
+    }
+
+    .day .date {
+      font-size:13px;
+      font-weight:600;
+    }
+
+    .day .events {
+      margin-top:8px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      flex:1;
+      overflow:hidden;
+    }
+
+    .event-pill {
+      background:#eef2ff;
+      padding:6px 8px;
+      border-radius:6px;
+      font-size:12px;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      overflow:hidden;
+    }
+
+    .today {
+      box-shadow: 0 0 0 2px rgba(75,110,246,0.12) inset;
+    }
+
+    /* modal */
+    .modal-backdrop {
+      position:fixed;
+      inset:0;
+      background:rgba(8,12,24,0.45);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+    }
+    .modal {
+      width:380px;
+      max-width:95%;
+      background:var(--card);
+      border-radius:12px;
+      padding:16px;
+      box-shadow:0 10px 40px rgba(16,24,40,0.35);
+    }
+    .modal h3{margin:0 0 8px 0;}
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
+    label{font-size:12px;color:var(--muted);}
+    input, textarea, select {
+      padding:10px;
+      border-radius:8px;
+      border:1px solid #e6e9f2;
+      font-size:14px;
+    }
+    textarea{min-height:80px;resize:vertical;}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+    .empty {
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    /* responsive */
+    @media (max-width:640px){
+      .day { min-height:84px; }
+      .header { flex-direction:column; align-items:flex-start; gap:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="title">
+        <h1>Commuter Calendar</h1>
+        <p>출퇴근 루트와 버스 콘텐츠를 기획하기 위한 간단한 캘린더</p>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="todayBtn">오늘</button>
+        <button class="btn" id="prevBtn">&larr;</button>
+        <div style="min-width:160px;text-align:center;font-weight:600;" id="monthLabel">—</div>
+        <button class="btn" id="nextBtn">&rarr;</button>
+        <button class="btn primary" id="addQuickBtn">이벤트 추가</button>
+      </div>
+    </div>
+
+    <div class="calendar-card">
+      <div class="weekdays" id="weekdays"></div>
+      <div class="grid-days" id="gridDays"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Day / Event editor -->
+  <div id="modalBackdrop" class="modal-backdrop" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">날짜</h3>
+
+      <div id="modalDateInfo" style="margin-bottom:12px;color:var(--muted)"></div>
+
+      <div id="eventsList"></div>
+
+      <hr style="border:none;border-top:1px solid #f0f2f8;margin:12px 0;">
+
+      <div class="field">
+        <label for="eventTitle">이벤트 제목</label>
+        <input id="eventTitle" placeholder="예: 회의, 점심, 독서" />
+      </div>
+
+      <div class="field">
+        <label for="eventTime">시간</label>
+        <input id="eventTime" type="time" />
+      </div>
+
+      <div class="field">
+        <label for="eventNotes">메모 (선택)</label>
+        <textarea id="eventNotes" placeholder="간단 메모"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="closeModal">닫기</button>
+        <button class="btn primary" id="saveEvent">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* -------------------------
+       Utilities & Storage
+       ------------------------- */
+    const LS_KEY = 'commuter-calendar-events-v1';
+
+    function loadEvents(){
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch(e){
+        console.error('loadEvents error', e);
+        return {};
+      }
+    }
+    function saveEvents(events){
+      localStorage.setItem(LS_KEY, JSON.stringify(events));
+    }
+
+    // events shape: { "YYYY-MM-DD": [ {id, title, time, notes} ] }
+
+    function uid(prefix='id'){
+      return prefix + '_' + Math.random().toString(36).slice(2,9);
+    }
+
+    /* -------------------------
+       Calendar Logic
+       ------------------------- */
+    const state = {
+      viewDate: new Date(), // current month shown
+      events: loadEvents()
+    };
+
+    const weekdaysKorean = ['일','월','화','수','목','금','토'];
+
+    function startOfMonth(date){
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    }
+
+    function endOfMonth(date){
+      return new Date(date.getFullYear(), date.getMonth()+1, 0);
+    }
+
+    function formatDateKey(date){
+      const y = date.getFullYear();
+      const m = String(date.getMonth()+1).padStart(2,'0');
+      const d = String(date.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function addEventToDate(dateKey, event){
+      state.events[dateKey] = state.events[dateKey] || [];
+      state.events[dateKey].push(event);
+      saveEvents(state.events);
+      renderCalendar();
+    }
+
+    function removeEventFromDate(dateKey, eventId){
+      if(!state.events[dateKey]) return;
+      state.events[dateKey] = state.events[dateKey].filter(ev => ev.id !== eventId);
+      if(state.events[dateKey].length === 0) delete state.events[dateKey];
+      saveEvents(state.events);
+      renderCalendar();
+    }
+
+    /* -------------------------
+       Render
+       ------------------------- */
+    const monthLabel = document.getElementById('monthLabel');
+    const weekdaysContainer = document.getElementById('weekdays');
+    const gridDays = document.getElementById('gridDays');
+
+    function renderWeekdays(){
+      weekdaysContainer.innerHTML = '';
+      weekdaysKorean.forEach(w => {
+        const el = document.createElement('div');
+        el.textContent = w;
+        weekdaysContainer.appendChild(el);
+      });
+    }
+
+    function renderCalendar(){
+      gridDays.innerHTML = '';
+      const view = state.viewDate;
+      const first = startOfMonth(view);
+      const last = endOfMonth(view);
+
+      // label
+      monthLabel.textContent = `${view.getFullYear()}년 ${view.getMonth()+1}월`;
+
+      // days calculation: show leading/trailing days to fill weeks
+      const startWeekday = first.getDay(); // 0..6
+      const totalDays = last.getDate();
+
+      // previous month's tail days
+      const prevMonthLast = new Date(view.getFullYear(), view.getMonth(), 0).getDate(); // last day number of prev month
+
+      // total cells (6 rows of 7 = 42) for consistent layout
+      const cells = 42;
+
+      for(let i=0; i<cells; i++){
+        const cell = document.createElement('div');
+        cell.className = 'day';
+        // calculate the date for this cell
+        const dayIndex = i - startWeekday + 1;
+        let cellDate;
+        let outside = false;
+        if(dayIndex <= 0){
+          // previous month
+          const dateNum = prevMonthLast + dayIndex;
+          cellDate = new Date(view.getFullYear(), view.getMonth()-1, dateNum);
+          outside = true;
+          cell.classList.add('outside');
+        } else if(dayIndex > totalDays){
+          // next month
+          const dateNum = dayIndex - totalDays;
+          cellDate = new Date(view.getFullYear(), view.getMonth()+1, dateNum);
+          outside = true;
+          cell.classList.add('outside');
+        } else {
+          cellDate = new Date(view.getFullYear(), view.getMonth(), dayIndex);
+        }
+
+        const dateKey = formatDateKey(cellDate);
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'date';
+        dateDiv.textContent = cellDate.getDate();
+        cell.appendChild(dateDiv);
+
+        // events preview (max 3)
+        const events = state.events[dateKey] || [];
+        const eventsWrap = document.createElement('div');
+        eventsWrap.className = 'events';
+        if(events.length === 0){
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = ''; // keep space for consistent height
+          eventsWrap.appendChild(empty);
+        } else {
+          events.slice(0,3).forEach(ev => {
+            const p = document.createElement('div');
+            p.className = 'event-pill';
+            p.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
+            eventsWrap.appendChild(p);
+          });
+          if(events.length > 3){
+            const more = document.createElement('div');
+            more.className = 'empty';
+            more.textContent = `+${events.length - 3} more`;
+            eventsWrap.appendChild(more);
+          }
+        }
+        cell.appendChild(eventsWrap);
+
+        // highlight today
+        const today = new Date();
+        if(formatDateKey(today) === dateKey && !outside){
+          cell.classList.add('today');
+        }
+
+        // click handler: open modal for that date (only when not outside, to keep simple)
+        cell.addEventListener('click', () => openDayModal(cellDate));
+
+        gridDays.appendChild(cell);
+      }
+    }
+
+    /* -------------------------
+       Modal: view/create events
+       ------------------------- */
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDateInfo = document.getElementById('modalDateInfo');
+    const eventsList = document.getElementById('eventsList');
+    const eventTitle = document.getElementById('eventTitle');
+    const eventTime = document.getElementById('eventTime');
+    const eventNotes = document.getElementById('eventNotes');
+
+    let modalCurrentDateKey = null;
+
+    function clearModalInputs(){
+      eventTitle.value = '';
+      eventTime.value = '';
+      eventNotes.value = '';
+    }
+
+    function openDayModal(date){
+      modalCurrentDateKey = formatDateKey(date);
+      modalTitle.textContent = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+      modalDateInfo.textContent = `${['일','월','화','수','목','금','토'][date.getDay()]}요일`;
+      renderEventsInModal();
+      clearModalInputs();
+      modalBackdrop.style.display = 'flex';
+    }
+
+    function closeModal(){
+      modalBackdrop.style.display = 'none';
+      modalCurrentDateKey = null;
+    }
+
+    function renderEventsInModal(){
+      eventsList.innerHTML = '';
+      const events = state.events[modalCurrentDateKey] || [];
+      if(events.length === 0){
+        const p = document.createElement('div');
+        p.className = 'empty';
+        p.textContent = '이 날짜에 등록된 일정이 없습니다.';
+        eventsList.appendChild(p);
+        return;
+      }
+
+      events
+        .sort((a,b) => (a.time || '') > (b.time || '') ? 1 : -1)
+        .forEach(ev => {
+          const wrap = document.createElement('div');
+          wrap.style.display = 'flex';
+          wrap.style.justifyContent = 'space-between';
+          wrap.style.alignItems = 'center';
+          wrap.style.marginBottom = '8px';
+
+          const info = document.createElement('div');
+          info.style.flex = '1';
+          const t = document.createElement('div');
+          t.style.fontWeight = '600';
+          t.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
+          const note = document.createElement('div');
+          note.style.fontSize = '13px';
+          note.style.color = 'var(--muted)';
+          note.textContent = ev.notes || '';
+          info.appendChild(t);
+          info.appendChild(note);
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn';
+          delBtn.style.marginLeft = '8px';
+          delBtn.textContent = '삭제';
+          delBtn.addEventListener('click', () => {
+            if(confirm('이 이벤트를 삭제하시겠습니까?')){
+              removeEventFromDate(modalCurrentDateKey, ev.id);
+              renderEventsInModal();
+            }
+          });
+
+          wrap.appendChild(info);
+          wrap.appendChild(delBtn);
+          eventsList.appendChild(wrap);
+        });
+    }
+
+    document.getElementById('closeModal').addEventListener('click', closeModal);
+
+    document.getElementById('saveEvent').addEventListener('click', () => {
+      const title = eventTitle.value.trim();
+      if(!title){
+        alert('제목을 입력하세요.');
+        return;
+      }
+      const time = eventTime.value;
+      const notes = eventNotes.value.trim();
+      const ev = {
+        id: uid('ev'),
+        title, time, notes
+      };
+      addEventToDate(modalCurrentDateKey, ev);
+      renderEventsInModal();
+      clearModalInputs();
+    });
+
+    // Quick add button opens modal for today
+    document.getElementById('addQuickBtn').addEventListener('click', () => {
+      openDayModal(new Date());
+    });
+
+    /* -------------------------
+       Navigation
+       ------------------------- */
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth()-1, 1);
+      renderCalendar();
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      state.viewDate = new Date(state.viewDate.getFullYear(), state.viewDate.getMonth()+1, 1);
+      renderCalendar();
+    });
+    document.getElementById('todayBtn').addEventListener('click', () => {
+      state.viewDate = new Date();
+      renderCalendar();
+    });
+
+    /* -------------------------
+       Initialization
+       ------------------------- */
+    function init(){
+      renderWeekdays();
+      renderCalendar();
+      // accessibility: close modal on backdrop click
+      modalBackdrop.addEventListener('click', (e) => {
+        if(e.target === modalBackdrop) closeModal();
+      });
+      // keyboard: ESC to close modal
+      document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
+    }
+
+    init();
+
+    /* -------------------------
+       Notes / Extension pointers
+       -------------------------
+       - 확장: 서버 동기화(API) -> 현재 localStorage 사용
+       - 확장: 반복 이벤트(weekly/monthly), 일정 알림(Push/Notification API)
+       - 확장: 드래그 앤 드롭으로 일정 이동 (HTML5 Drag API)
+       - 확장: 출퇴근 루트 추천, 교통 API 연동 (카카오/네이버/Google Directions)
+       - 확장: 버스 안 콘텐츠 추천을 위해 event에 'type' 필드 추가 (music/read/short-task)
+       - 확장: 검색/필터, 태그, 색상 라벨, 통계(주간/월간)
+    ------------------------- */
+  </script>
+</body>
+</html>
